@@ -8,17 +8,12 @@ import shutil
 
 # Vercel Read-Only Patch
 # If running in Vercel, move DB to /tmp which is writable
-base_filename = "sentinelnet.db"
-search_paths = [base_filename, "../" + base_filename, "../../" + base_filename]
-src_db = next((p for p in search_paths if os.path.exists(p)), None)
-
+# Vercel Read-Only Patch
+# Use In-Memory DB for Vercel Demo to avoid filesystem issues entirely
 if os.getenv("VERCEL"):
-    db_path = f"/tmp/{base_filename}"
-    # Copy plain DB to tmp if not exists and source found
-    if not os.path.exists(db_path) and src_db:
-        shutil.copy(src_db, db_path)
-    DATABASE_URL = f"sqlite:///{db_path}"
+    DATABASE_URL = "sqlite:///:memory:"
 else:
+    base_filename = "sentinelnet.db"
     DATABASE_URL = f"sqlite:///./{base_filename}"
 
 engine = create_engine(

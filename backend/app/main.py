@@ -6,6 +6,7 @@ from app.db.session import engine
 from app.db.base import Base
 from app.models.user import User
 from app.models.message import Message
+from app.core import security
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -15,6 +16,23 @@ import traceback
 
 # Create tables on startup
 Base.metadata.create_all(bind=engine)
+
+# Create Default User for Vercel Demo
+try:
+    db = SessionLocal()
+    if not db.query(User).filter(User.email == "admin@sentinel.net").first():
+        user = User(
+            email="admin@sentinel.net",
+            hashed_password=security.get_password_hash("admin"),
+            full_name="Commander Shepard",
+            role="admin",
+            is_active=True
+        )
+        db.add(user)
+        db.commit()
+    db.close()
+except Exception as e:
+    print(f"Error creating default user: {e}")
 
 app = FastAPI(title="SentinelNet API", version="1.0.0")
 
