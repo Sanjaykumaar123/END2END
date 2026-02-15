@@ -70,7 +70,7 @@ export function ChatInterface() {
         if (!token) return;
 
         try {
-            const res = await fetch(`http://localhost:8000/api/v1/chat/messages?channel_id=${selectedChannel}`, {
+            const res = await fetch(`/api/v1/chat/messages?channel_id=${selectedChannel}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -195,7 +195,7 @@ export function ChatInterface() {
             // Backend API Call
             let risk: RiskResult;
             try {
-                const res = await fetch('http://localhost:8000/api/v1/threat-intel/scan', {
+                const res = await fetch('/api/v1/threat-intel/scan', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -250,7 +250,7 @@ export function ChatInterface() {
         if (!dmEmail) return;
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:8000/api/v1/chat/dm', {
+            const res = await fetch('/api/v1/chat/dm', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -287,7 +287,7 @@ export function ChatInterface() {
         try {
             const token = localStorage.getItem('token');
             if (!token) return;
-            const res = await fetch('http://localhost:8000/api/v1/chat/dms', {
+            const res = await fetch('/api/v1/chat/dms', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
