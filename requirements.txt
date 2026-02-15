@@ -5,6 +5,8 @@ python-dotenv
 sqlalchemy
 pydantic-settings
 passlib[bcrypt]
+bcrypt
+python-multipart
 python-jose[cryptography]
 httpx
 anyio

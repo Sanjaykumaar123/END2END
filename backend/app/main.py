@@ -7,11 +7,23 @@ from app.db.base import Base
 from app.models.user import User
 from app.models.message import Message
 
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+import traceback
+
+# ... (Previous imports remain same)
+
 # Create tables on startup
-# This guarantees that the /tmp database on Vercel has the schema initialized
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="SentinelNet API", version="1.0.0")
+
+@app.exception_handler(Exception)
+async def debug_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Server Error: {str(exc)} Trace: {traceback.format_exc()}"},
+    )
 
 # Configure CORS for Vercel
 # Allowing "*" with allow_credentials=False prevents protocol errors
