@@ -11,7 +11,7 @@ import traceback
 
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import router as api_router
-from app.db.session import engine
+from app.db.session import SessionLocal, engine
 # Explicit imports of Base and Models triggers registration in Base.metadata
 from app.db.base import Base
 from app.models.user import User
@@ -76,7 +76,24 @@ def read_root():
 
 @app.get("/api/health")
 def health_check():
+    db = SessionLocal()
+    user_count = 0
+    first_user = "None"
+    try:
+        user_count = db.query(User).count()
+        u = db.query(User).first()
+        if u:
+            first_user = u.email
+    except Exception as e:
+        first_user = f"Error: {e}"
+    finally:
+        db.close()
+
     return {
         "status": "operational",
+        "env_vercel": os.getenv("VERCEL"),
+        "db_type": str(engine.url),
+        "user_count": user_count,
+        "first_user_email": first_user,
         "tables": list(Base.metadata.tables.keys())
     }
