@@ -1,4 +1,14 @@
-from fastapi import FastAPI
+import sys
+import os
+
+# Fix Vercel Import Path: Add 'backend' directory to sys.path
+# This ensures 'from app...' imports work correctly in serverless environment
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+import traceback
+
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import router as api_router
 from app.db.session import engine
