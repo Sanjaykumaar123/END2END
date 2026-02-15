@@ -29,4 +29,4 @@ app.include_router(api_router, prefix="/api/v1")
 def read_root():
     return {"message": "SentinelNet Secure Gateway Active"}
 
-# Updated to trigger reload... AI upgrade complete
+# Updated to trigger reload... dashboard live
