@@ -2,8 +2,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.env
-.env.*
+# .env  <-- Commented out to allow
+# .env.* <-- Commented out to allow
 !.env.example
 .venv
 env/
@@ -17,8 +17,8 @@ out/
 build/
 dist/
 *.log
-*.sqlite
-*.db
-sentinelnet.db
+# *.sqlite <-- Commented out
+# *.db     <-- Commented out
+# sentinelnet.db <-- Commented out
 .DS_Store
 .vscode/
