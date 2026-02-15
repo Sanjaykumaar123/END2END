@@ -12,3 +12,4 @@ httpx
 anyio
 email-validator
 pyjwt
+argon2-cffi
