@@ -5,8 +5,8 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
-# Switch to bcrypt as it is installed in requirements.txt (argon2 was missing)
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Support both bcrypt (for Vercel/New) and argon2 (for existing Local DB)
+pwd_context = CryptContext(schemes=["bcrypt", "argon2"], deprecated="auto")
 ALGORITHM = "HS256"
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
