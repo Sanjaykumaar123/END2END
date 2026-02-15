@@ -1,8 +1,6 @@
 fastapi
 uvicorn[standard]
 websockets
-transformers
-torch
 python-dotenv
 sqlalchemy
 psycopg2-binary
@@ -10,15 +8,6 @@ pydantic-settings
 passlib[bcrypt]
 python-jose[cryptography]
 httpx
-pytest
-pytest-asyncio
-pytest-cov
-black
-flake8
-mypy
-isort
-pre-commit
-watchfiles
 anyio
 email-validator
 pyjwt
