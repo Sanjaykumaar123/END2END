@@ -34,14 +34,15 @@ function LoginForm() {
             });
 
             if (!res.ok) {
-                throw new Error("Invalid credentials");
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.detail || "Invalid credentials");
             }
 
             const data = await res.json();
             localStorage.setItem("token", data.access_token);
             router.push("/chat");
-        } catch (err) {
-            setError("Access Denied: Invalid Certification Credentials");
+        } catch (err: any) {
+            setError(err.message || "Access Denied: Invalid Certification Credentials");
         } finally {
             setIsLoading(false);
         }
