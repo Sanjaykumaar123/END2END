@@ -16,6 +16,8 @@ from sqlalchemy.pool import StaticPool
 DB_CONNECTION_ERROR = None
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+import ssl
+
 if DATABASE_URL:
     try:
         # Production / Persistent DB (e.g. Neon, Render, Supabase)
@@ -27,7 +29,17 @@ if DATABASE_URL:
         elif DATABASE_URL.startswith("neondb://"):
              DATABASE_URL = DATABASE_URL.replace("neondb://", "postgresql+pg8000://", 1)
             
-        engine = create_engine(DATABASE_URL)
+        # Create SSL context for pg8000
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+
+        engine = create_engine(
+            DATABASE_URL,
+            connect_args={"ssl_context": ssl_context},
+            pool_pre_ping=True,
+            pool_recycle=300
+        )
     except Exception as e:
         DB_CONNECTION_ERROR = str(e)
         print(f"DATABASE CONNECTION FAILED AT IMPORT: {e}")

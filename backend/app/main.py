@@ -122,3 +122,28 @@ def health_check():
         "db_url_masked": str(engine.url)[:15] + "...", # Security: Don't explicitly show full creds
         "db_connection_error": str(DB_CONNECTION_ERROR) if DB_CONNECTION_ERROR else None
     }
+
+@app.get("/api/debug/users")
+def debug_users():
+    """
+    TEMPORARY DEBUG ENDPOINT
+    List all users to verify registration persistence.
+    """
+    db = SessionLocal()
+    try:
+        users = db.query(User).all()
+        return [
+            {
+                "id": u.id,
+                "email": u.email,
+                "created_at": "Unknown", # Add timestamp to model later if needed
+                "role": u.role,
+                "is_active": u.is_active,
+                # "hashed_password": u.hashed_password[:10] + "..." # truncated
+            }
+            for u in users
+        ]
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
