@@ -9,7 +9,7 @@ from app.models.user import User
 from app.core import security
 from app.core.config import settings
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login/access-token")
 
 def get_db() -> Generator:
     try:

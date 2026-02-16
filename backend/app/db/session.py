@@ -12,17 +12,31 @@ import shutil
 # Use In-Memory DB for Vercel Demo to avoid filesystem issues entirely
 from sqlalchemy.pool import StaticPool
 
-if os.getenv("VERCEL"):
+# Prioritize connection string from environment variable (e.g. Vercel Postgres, Neon, Render)
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+    # PostgreSQL (Production / Persistent)
+    # Fix for some providers using postgres:// which SQLAlchemy 1.4+ deprecated
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        
+    engine = create_engine(DATABASE_URL)
+elif os.getenv("VERCEL"):
+    # Vercel Fallback (if no DATABASE_URL provided): In-Memory SQLite
+    # WARNING: Data is ephemeral and will be lost on function restart
     DATABASE_URL = "sqlite:///:memory:"
     engine = create_engine(
         DATABASE_URL,
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool, # CRITICAL: Data persists in memory for process lifetime
+        poolclass=StaticPool, 
     )
 else:
+    # Local Development: File-based SQLite
     base_filename = "sentinelnet.db"
     DATABASE_URL = f"sqlite:///./{base_filename}"
     engine = create_engine(
         DATABASE_URL, connect_args={"check_same_thread": False}
     )
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
