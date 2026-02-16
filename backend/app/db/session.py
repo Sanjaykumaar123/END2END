@@ -19,9 +19,18 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 import ssl
 
 if DATABASE_URL:
-    # Sanitize URL: Remove any accidental quotes or whitespace from Vercel env var
-    DATABASE_URL = DATABASE_URL.strip().strip('"').strip("'")
+    # Sanitize URL: Remove common copy-paste errors
+    # 1. Remove 'psql ' prefix if copied from Neon/terminal
+    if DATABASE_URL.startswith("psql"):
+        DATABASE_URL = DATABASE_URL.split(" ")[-1]
     
+    # 2. Remove surrounding quotes (single or double)
+    DATABASE_URL = DATABASE_URL.strip().strip("'").strip('"')
+
+    # 3. Handle specific Neon params (pg8000 doesn't like channel_binding sometimes)
+    # We will let the URL pass, but typically we might need to remove incompatible query params if they cause issues.
+    # For now, just fixing the prefix/quotes is the biggest win.
+
     try:
         # Production / Persistent DB (e.g. Neon, Render, Supabase)
         # Handle deprecated postgres:// scheme
