@@ -1,13 +1,12 @@
 fastapi
-uvicorn[standard]
-websockets
+uvicorn
 python-dotenv
 sqlalchemy
 pydantic-settings
-passlib[bcrypt]
+passlib
 bcrypt
 python-multipart
-python-jose[cryptography]
+python-jose
 httpx
 anyio
 email-validator
