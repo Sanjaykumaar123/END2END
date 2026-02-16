@@ -19,6 +19,9 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 import ssl
 
 if DATABASE_URL:
+    # Sanitize URL: Remove any accidental quotes or whitespace from Vercel env var
+    DATABASE_URL = DATABASE_URL.strip().strip('"').strip("'")
+    
     try:
         # Production / Persistent DB (e.g. Neon, Render, Supabase)
         # Handle deprecated postgres:// scheme
