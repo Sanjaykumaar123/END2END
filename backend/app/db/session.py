@@ -16,14 +16,27 @@ from sqlalchemy.pool import StaticPool
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL:
-    # Production / Persistent DB (e.g. Neon, Render, Supabase)
-    # Handle deprecated postgres:// scheme
-    if DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+pg8000://", 1)
-    elif DATABASE_URL.startswith("postgresql://"):
-        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
-        
-    engine = create_engine(DATABASE_URL)
+    try:
+        # Production / Persistent DB (e.g. Neon, Render, Supabase)
+        # Handle deprecated postgres:// scheme
+        if DATABASE_URL.startswith("postgres://"):
+            DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+pg8000://", 1)
+        elif DATABASE_URL.startswith("postgresql://"):
+            DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
+        elif DATABASE_URL.startswith("neondb://"):
+             DATABASE_URL = DATABASE_URL.replace("neondb://", "postgresql+pg8000://", 1)
+            
+        engine = create_engine(DATABASE_URL)
+    except Exception as e:
+        print(f"DATABASE CONNECTION FAILED AT IMPORT: {e}")
+        # Fallback to in-memory SQLite to prevent crash
+        DATABASE_URL = "sqlite:///:memory:"
+        engine = create_engine(
+            DATABASE_URL,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool, 
+        )
+
 elif os.getenv("VERCEL"):
     # Vercel Fallback (if no DATABASE_URL provided): In-Memory SQLite
     # WARNING: Data is ephemeral and will be lost on function restart
@@ -33,12 +46,22 @@ elif os.getenv("VERCEL"):
         connect_args={"check_same_thread": False},
         poolclass=StaticPool, 
     )
+    
 else:
     # Local Development: File-based SQLite
-    base_filename = "sentinelnet.db"
-    DATABASE_URL = f"sqlite:///./{base_filename}"
-    engine = create_engine(
-        DATABASE_URL, connect_args={"check_same_thread": False}
-    )
+    try:
+        base_filename = "sentinelnet.db"
+        DATABASE_URL = f"sqlite:///./{base_filename}"
+        engine = create_engine(
+            DATABASE_URL, connect_args={"check_same_thread": False}
+        )
+    except Exception as e:
+         # Extreme Fallback
+        DATABASE_URL = "sqlite:///:memory:"
+        engine = create_engine(
+            DATABASE_URL,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool, 
+        )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
