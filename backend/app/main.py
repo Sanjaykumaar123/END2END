@@ -87,7 +87,8 @@ def read_root():
     return {
         "message": "SentinelNet Secure Gateway Active",
         "env": "Vercel",
-        "tables": list(Base.metadata.tables.keys())
+        "tables": list(Base.metadata.tables.keys()),
+        "db_url_masked": str(engine.url)[:15] + "..."
     }
 
 @app.get("/api/health")
@@ -111,5 +112,6 @@ def health_check():
         "db_type": str(engine.url),
         "user_count": user_count,
         "first_user_email": first_user,
-        "tables": list(Base.metadata.tables.keys())
+        "tables": list(Base.metadata.tables.keys()),
+        "db_url_masked": str(engine.url)[:15] + "..." # Security: Don't explicitly show full creds
     }

@@ -15,9 +15,9 @@ from sqlalchemy.pool import StaticPool
 # Prioritize connection string from environment variable (e.g. Vercel Postgres, Neon, Render)
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-    # PostgreSQL (Production / Persistent)
-    # Fix for some providers using postgres:// which SQLAlchemy 1.4+ deprecated
+if DATABASE_URL:
+    # Production / Persistent DB (e.g. Neon, Render, Supabase)
+    # Handle deprecated postgres:// scheme
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
         
