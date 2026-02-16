@@ -44,7 +44,7 @@ if DATABASE_URL:
             pool_recycle=300
         )
     except Exception as e:
-        DB_CONNECTION_ERROR = str(e)
+        DB_CONNECTION_ERROR = f"{str(e)} || TRIED_URL_START: {DATABASE_URL[:25] if DATABASE_URL else 'None'}..."
         print(f"DATABASE CONNECTION FAILED AT IMPORT: {e}")
         # Fallback to in-memory SQLite to prevent crash
         DATABASE_URL = "sqlite:///:memory:"
