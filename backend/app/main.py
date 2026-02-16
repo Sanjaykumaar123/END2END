@@ -31,30 +31,38 @@ from contextlib import asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic
     try:
+        # Debug connection
+        print(f"DATABASE CONNECTING TO: {str(engine.url).replace(str(engine.url).split('@')[0], '****') if '@' in str(engine.url) else str(engine.url)[:20]}...")
+
         # Create tables on startup
-        Base.metadata.create_all(bind=engine)
-        
-        # Create Default User for Vercel Demo
+        # WRAPPED IN TRY/EXCEPT TO PREVENT CRASH ON VERCEL IF DB CONNECTION FAILS
         try:
+            Base.metadata.create_all(bind=engine)
+            
+            # Create Default User for Vercel Demo
             db = SessionLocal()
-            if not db.query(User).filter(User.email == "admin@sentinel.net").first():
-                user = User(
-                    email="admin@sentinel.net",
-                    hashed_password=security.get_password_hash("admin"),
-                    full_name="Commander Shepard",
-                    role="admin",
-                    is_active=True
-                )
-                db.add(user)
-                db.commit()
-            db.close()
-        except Exception as e:
-            print(f"Error creating default user: {e}")
+            try:
+                if not db.query(User).filter(User.email == "admin@sentinel.net").first():
+                    user = User(
+                        email="admin@sentinel.net",
+                        hashed_password=security.get_password_hash("admin"),
+                        full_name="Commander Shepard",
+                        role="admin",
+                        is_active=True
+                    )
+                    db.add(user)
+                    db.commit()
+            except Exception as e:
+                print(f"Error creating default user: {e}")
+            finally:
+                db.close()
+                
+        except Exception as db_exc:
+            print(f"CRITICAL DATABASE ERROR: {db_exc}")
+            # Do NOT raise, so the app still starts and we can see /health
             
     except Exception as e:
-        print(f"Startup Error - Database Init Failed: {e}")
-        # We don't raise here so the app can still start and return 500s for specific requests
-        # instead of crashing the process entirely.
+        print(f"Startup Error - General: {e}")
 
     yield
     # Shutdown logic (if any)
