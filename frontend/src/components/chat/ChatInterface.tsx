@@ -127,35 +127,78 @@ export function ChatInterface() {
                 // Hack: We won't fix the flash for now. It renders, it works. 
                 // Using `data.map(m => ({ ...m, timestamp: new Date(m.timestamp) }))` to fix Date object.
                 setMessages(prev => {
-                    // Create a map of existing messages by ID
-                    const existingMap = new Map(prev.map(m => [m.id, m]));
+                    const nextMap = new Map(prev.map(m => [m.id, m]));
 
-                    // Process incoming messages
-                    data.forEach((m: any) => {
-                        existingMap.set(m.id.toString(), {
-                            id: m.id.toString(),
-                            text: m.content_encrypted || m.text, // Handle both fields
-                            sender: m.sender_id === m.receiver_id ? 'me' : (m.sender === 'me' ? 'me' : 'them'), // logic handled in backend response usually
-                            // Backend response already formats 'sender' as 'me' or 'them', use it directly
-                            ...m,
-                            timestamp: new Date(m.timestamp),
-                            file: m.file_url ? {
-                                url: m.file_url,
-                                type: m.file_type,
-                                size: m.file_size,
-                                name: m.file_type || "Encrypted File"
-                            } : undefined,
-                            integrityHash: m.integrity_hash,
-                            replyTo: m.reply_to ? {
-                                id: m.reply_to.id,
-                                text: m.reply_to.text,
-                                sender: m.reply_to.sender
-                            } : undefined
-                        });
+                    data.forEach((backendMsg: any) => {
+                        const committedId = backendMsg.id.toString();
+
+                        // Check if we already have this committed message by ID
+                        if (nextMap.has(committedId)) {
+                            // Update existing committed message (e.g. status change)
+                            const existing = nextMap.get(committedId)!;
+                            nextMap.set(committedId, {
+                                ...existing,
+                                ...backendMsg,
+                                text: backendMsg.content_encrypted || backendMsg.text,
+                                timestamp: new Date(backendMsg.timestamp),
+                                // Preserve local risk/file if needed, but backend is truth
+                                file: backendMsg.file_url ? {
+                                    url: backendMsg.file_url,
+                                    type: backendMsg.file_type,
+                                    size: backendMsg.file_size,
+                                    name: backendMsg.file_type || "Encrypted File"
+                                } : undefined,
+                                integrityHash: backendMsg.integrity_hash,
+                                replyTo: backendMsg.reply_to ? {
+                                    id: backendMsg.reply_to.id,
+                                    text: backendMsg.reply_to.text,
+                                    sender: backendMsg.reply_to.sender
+                                } : undefined
+                            });
+                        } else {
+                            // This is a new message from backend (ID not in map).
+                            // Try to find a matching "scanning" local message to replace (deduplicate)
+                            let matchFound = false;
+                            for (const [key, val] of nextMap.entries()) {
+                                // Match criteria: same sender ('me'), status is 'scanning', same text content
+                                const backendText = backendMsg.content_encrypted || backendMsg.text;
+                                if (val.sender === 'me' &&
+                                    val.status === 'scanning' &&
+                                    val.text === backendText) {
+
+                                    // Found a match! Delete the local temp message
+                                    nextMap.delete(key);
+                                    matchFound = true;
+                                    break; // Only replace one local message per backend message
+                                }
+                            }
+
+                            // Add the backend message
+                            nextMap.set(committedId, {
+                                id: committedId,
+                                text: backendMsg.content_encrypted || backendMsg.text,
+                                sender: backendMsg.sender_id === backendMsg.receiver_id ? 'me' : (backendMsg.sender === 'me' ? 'me' : 'them'),
+                                timestamp: new Date(backendMsg.timestamp),
+                                status: backendMsg.risk?.opsec_risk === 'HIGH' ? 'blocked' : 'sent',
+                                risk: backendMsg.risk,
+                                file: backendMsg.file_url ? {
+                                    url: backendMsg.file_url,
+                                    type: backendMsg.file_type,
+                                    size: backendMsg.file_size,
+                                    name: backendMsg.file_type || "Encrypted File"
+                                } : undefined,
+                                integrityHash: backendMsg.integrity_hash,
+                                replyTo: backendMsg.reply_to ? {
+                                    id: backendMsg.reply_to.id,
+                                    text: backendMsg.reply_to.text,
+                                    sender: backendMsg.reply_to.sender
+                                } : undefined
+                            });
+                        }
                     });
 
                     // Convert map back to array and sort
-                    return Array.from(existingMap.values()).sort((a, b) =>
+                    return Array.from(nextMap.values()).sort((a, b) =>
                         a.timestamp.getTime() - b.timestamp.getTime()
                     );
                 });
