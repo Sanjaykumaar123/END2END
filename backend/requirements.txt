@@ -13,4 +13,4 @@ anyio
 email-validator
 pyjwt
 argon2-cffi
-psycopg2-binary
+pg8000
