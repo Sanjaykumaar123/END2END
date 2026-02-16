@@ -39,13 +39,12 @@ export default function RegisterPage() {
             });
 
             if (!res.ok) {
+                const text = await res.text();
                 let errorMessage = "Registration Failed";
                 try {
-                    const data = await res.json();
+                    const data = JSON.parse(text);
                     errorMessage = data.detail || errorMessage;
                 } catch {
-                    // If JSON parse fails, it might be an HTML error page from Vercel
-                    const text = await res.text();
                     errorMessage = text.slice(0, 100) || "Server Error (Non-JSON response)";
                 }
                 throw new Error(errorMessage);
