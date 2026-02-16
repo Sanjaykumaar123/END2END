@@ -159,7 +159,8 @@ export function ChatInterface() {
                             // This is a new message from backend (ID not in map).
                             // Try to find a matching "scanning" local message to replace (deduplicate)
                             let matchFound = false;
-                            for (const [key, val] of nextMap.entries()) {
+                            // Fix TS iterator error
+                            for (const [key, val] of Array.from(nextMap.entries())) {
                                 // Match criteria: same sender ('me'), status is 'scanning', same text content
                                 const backendText = backendMsg.content_encrypted || backendMsg.text;
                                 if (val.sender === 'me' &&
