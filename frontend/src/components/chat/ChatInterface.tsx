@@ -126,22 +126,39 @@ export function ChatInterface() {
 
                 // Hack: We won't fix the flash for now. It renders, it works. 
                 // Using `data.map(m => ({ ...m, timestamp: new Date(m.timestamp) }))` to fix Date object.
-                setMessages(data.map((m: any) => ({
-                    ...m,
-                    timestamp: new Date(m.timestamp),
-                    file: m.file_url ? {
-                        url: m.file_url,
-                        type: m.file_type,
-                        size: m.file_size,
-                        name: m.file_type || "Encrypted File"
-                    } : undefined,
-                    integrityHash: m.integrity_hash,
-                    replyTo: m.reply_to ? {
-                        id: m.reply_to.id,
-                        text: m.reply_to.text,
-                        sender: m.reply_to.sender
-                    } : undefined
-                })));
+                setMessages(prev => {
+                    // Create a map of existing messages by ID
+                    const existingMap = new Map(prev.map(m => [m.id, m]));
+
+                    // Process incoming messages
+                    data.forEach((m: any) => {
+                        existingMap.set(m.id.toString(), {
+                            id: m.id.toString(),
+                            text: m.content_encrypted || m.text, // Handle both fields
+                            sender: m.sender_id === m.receiver_id ? 'me' : (m.sender === 'me' ? 'me' : 'them'), // logic handled in backend response usually
+                            // Backend response already formats 'sender' as 'me' or 'them', use it directly
+                            ...m,
+                            timestamp: new Date(m.timestamp),
+                            file: m.file_url ? {
+                                url: m.file_url,
+                                type: m.file_type,
+                                size: m.file_size,
+                                name: m.file_type || "Encrypted File"
+                            } : undefined,
+                            integrityHash: m.integrity_hash,
+                            replyTo: m.reply_to ? {
+                                id: m.reply_to.id,
+                                text: m.reply_to.text,
+                                sender: m.reply_to.sender
+                            } : undefined
+                        });
+                    });
+
+                    // Convert map back to array and sort
+                    return Array.from(existingMap.values()).sort((a, b) =>
+                        a.timestamp.getTime() - b.timestamp.getTime()
+                    );
+                });
             }
         } catch (error) {
             console.error("Failed to fetch messages", error);
@@ -606,7 +623,7 @@ export function ChatInterface() {
                         </div>
                     )}
 
-                    <div className="relative max-w-4xl mx-auto flex items-center gap-2">
+                    <div className="relative max-w-4xl mx-auto flex items-end gap-2">
                         <input
                             type="file"
                             ref={fileInputRef}
@@ -618,7 +635,7 @@ export function ChatInterface() {
                         <button
                             onClick={() => fileInputRef.current?.click()}
                             className={clsx(
-                                "p-3 rounded-full hover:bg-slate-700 text-slate-400 border border-slate-700 transition",
+                                "p-3 rounded-full hover:bg-slate-700 text-slate-400 border border-slate-700 transition mb-1",
                                 fileUpload ? "bg-teal-500/10 border-teal-500/50 text-teal-400" : "bg-slate-800"
                             )}
                             title="Attach Encrypted File"
@@ -636,14 +653,15 @@ export function ChatInterface() {
                         />
                         {/* Scan line effect when focused or send */}
                         <div className="absolute inset-0 rounded-xl pointer-events-none border border-transparent group-focus-within:border-teal-500/10"></div>
+
+                        <button
+                            onClick={handleSend}
+                            disabled={(!input.trim() && !fileUpload) || isScanning}
+                            className="p-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-teal-500/20 mb-1"
+                        >
+                            {isScanning ? <Activity className="w-5 h-5 animate-pulse" /> : <Send className="w-5 h-5" />}
+                        </button>
                     </div>
-                    <button
-                        onClick={handleSend}
-                        disabled={(!input.trim() && !fileUpload) || isScanning}
-                        className="p-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-teal-500/20"
-                    >
-                        {isScanning ? <Activity className="w-5 h-5 animate-pulse" /> : <Send className="w-5 h-5" />}
-                    </button>
                 </div>
                 <div className="flex justify-between items-center mt-2 text-[10px] text-slate-600 px-4 font-mono">
                     <div className="flex items-center gap-4">
