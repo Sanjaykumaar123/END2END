@@ -39,8 +39,16 @@ export default function RegisterPage() {
             });
 
             if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.detail || "Registration Failed");
+                let errorMessage = "Registration Failed";
+                try {
+                    const data = await res.json();
+                    errorMessage = data.detail || errorMessage;
+                } catch {
+                    // If JSON parse fails, it might be an HTML error page from Vercel
+                    const text = await res.text();
+                    errorMessage = text.slice(0, 100) || "Server Error (Non-JSON response)";
+                }
+                throw new Error(errorMessage);
             }
 
             // Redirect to login on success

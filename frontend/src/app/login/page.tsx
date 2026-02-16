@@ -34,8 +34,15 @@ function LoginForm() {
             });
 
             if (!res.ok) {
-                const errorData = await res.json().catch(() => ({}));
-                throw new Error(errorData.detail || "Invalid credentials");
+                let errorMessage = "Invalid credentials";
+                try {
+                    const data = await res.json();
+                    errorMessage = data.detail || errorMessage;
+                } catch {
+                    const text = await res.text();
+                    errorMessage = text.slice(0, 100) || "Server Error (Non-JSON response)";
+                }
+                throw new Error(errorMessage);
             }
 
             const data = await res.json();

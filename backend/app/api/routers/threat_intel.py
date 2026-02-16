@@ -17,6 +17,7 @@ class ScanRequest(BaseModel):
     integrity_hash: str | None = None
     channel_id: str = "general"
     ttl_seconds: int | None = None  # Self-destruct timer
+    reply_to_id: int | None = None
 
 class ScanResponse(BaseModel):
     ai_score: float
@@ -66,6 +67,7 @@ async def scan(
         integrity_hash=request.integrity_hash,
         channel_id=request.channel_id,
         receiver_id=receiver_id,
+        reply_to_id=request.reply_to_id,
         expiration=datetime.utcnow() + timedelta(seconds=request.ttl_seconds) if request.ttl_seconds else None
     )
     db.add(db_message)

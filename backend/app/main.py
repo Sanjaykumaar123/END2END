@@ -24,27 +24,43 @@ import traceback
 
 # ... (Previous imports remain same)
 
-# Create tables on startup
-Base.metadata.create_all(bind=engine)
+from contextlib import asynccontextmanager
 
-# Create Default User for Vercel Demo
-try:
-    db = SessionLocal()
-    if not db.query(User).filter(User.email == "admin@sentinel.net").first():
-        user = User(
-            email="admin@sentinel.net",
-            hashed_password=security.get_password_hash("admin"),
-            full_name="Commander Shepard",
-            role="admin",
-            is_active=True
-        )
-        db.add(user)
-        db.commit()
-    db.close()
-except Exception as e:
-    print(f"Error creating default user: {e}")
+# Define lifespan manager for startup and shutdown logic
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
+    try:
+        # Create tables on startup
+        Base.metadata.create_all(bind=engine)
+        
+        # Create Default User for Vercel Demo
+        try:
+            db = SessionLocal()
+            if not db.query(User).filter(User.email == "admin@sentinel.net").first():
+                user = User(
+                    email="admin@sentinel.net",
+                    hashed_password=security.get_password_hash("admin"),
+                    full_name="Commander Shepard",
+                    role="admin",
+                    is_active=True
+                )
+                db.add(user)
+                db.commit()
+            db.close()
+        except Exception as e:
+            print(f"Error creating default user: {e}")
+            
+    except Exception as e:
+        print(f"Startup Error - Database Init Failed: {e}")
+        # We don't raise here so the app can still start and return 500s for specific requests
+        # instead of crashing the process entirely.
 
-app = FastAPI(title="SentinelNet API", version="1.0.0")
+    yield
+    # Shutdown logic (if any)
+
+
+app = FastAPI(title="SentinelNet API", version="1.0.0", lifespan=lifespan)
 
 @app.exception_handler(Exception)
 async def debug_exception_handler(request: Request, exc: Exception):

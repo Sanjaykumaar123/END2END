@@ -8,33 +8,63 @@ class ThreatIntelService:
         pass
 
     async def detect_ai_generated(self, text: str) -> float:
-        # Improved heuristic simulation
+        # Advanced Transformer Pattern Analysis (Simulated)
+        # Mimics BERT/RoBERTa classification features
+        
         text_lower = text.lower()
         score = 0.0
         
-        # 1. AI Phrases
-        ai_phrases = ["as an AI language model", "regenerate response", "I cannot fulfill", "based on my training"]
-        if any(phrase in text_lower for phrase in ai_phrases):
-            return 99.9
-            
-        # 2. Structural Patterns (Formal, repetitive)
+        # 1. Transformer Artifacts (Common generative patterns)
+        # LLMs often use specific transitional phrases and neutral tones
+        artifacts = [
+            "as an ai", "cannot generate", "regenerate", "model", "context",
+            "in summary", "furthermore", "it is important to note", 
+            "based on the information", "certainly!", "here is the"
+        ]
+        artifact_hits = sum(1 for phrase in artifacts if phrase in text_lower)
+        if artifact_hits > 0:
+            return min(85.0 + (artifact_hits * 10), 99.9)
+
+        # 2. Perplexity / Entropy Proxy
+        # AI text often has "perfect" grammar and median sentence length
         words = text.split()
-        if len(words) > 30:
-            avg_word_len = sum(len(w) for w in words) / len(words)
-            if avg_word_len > 6: # overly complex vocabulary?
-                score += 30
-            if text.count(",") > 5 and text.count(".") < 2: # run-on formal?
-                score += 20
-                
-        # 3. Urgency / Emotion (AI is usually neutral)
-        urgency_words = ["immediate", "urgent", "asap", "critical", "severe"]
-        if any(w in text_lower for w in urgency_words):
-            score -= 20 # Human messages are often urgent
+        if len(words) > 10:
+            # Vocabulary Richness (Type-Token Ratio)
+            unique_words = len(set(words))
+            ttr = unique_words / len(words)
             
-        # Default randomness + base
-        base = random.uniform(5.0, 20.0)
-        final_score = base + score
-        return min(max(final_score, 0.0), 100.0)
+            # Low TTR (< 0.5) implies repetition typical of some bot output
+            # High TTR (> 0.9) in long text implies forced randomness
+            if ttr < 0.5:
+                score += 15
+            
+            # Sentence Structure Analysis
+            sentences = re.split(r'[.!?]+', text)
+            sentences = [s for s in sentences if s.strip()]
+            if sentences:
+                avg_len = sum(len(s.split()) for s in sentences) / len(sentences)
+                # AI tends to average 15-20 words per sentence in formal modes
+                if 12 <= avg_len <= 25:
+                    score += 10
+                    
+                # Standard Deviation of sentence length (AI is often more uniform)
+                variance = sum((len(s.split()) - avg_len) ** 2 for s in sentences) / len(sentences)
+                if variance < 20: # Very uniform sentence lengths
+                    score += 15
+
+        # 3. Burstiness Analysis (Human text is bursty, AI is smooth)
+        # We detect "smoothness" by checking punctuation distribution
+        if len(text) > 50:
+            punctuation_count = len(re.findall(r'[.,;!?]', text))
+            ratio = punctuation_count / len(words)
+            if 0.05 < ratio < 0.08: # "Perfect" punctuation ratio
+                score += 10
+
+        # Base probability from "BERT" model simulation
+        base_confidence = random.uniform(10.0, 30.0) 
+        final_score = base_confidence + score
+        
+        return min(max(final_score, 0.0), 98.5)
 
     async def detect_opsec_risk(self, text: str) -> str:
         text_lower = text.lower()

@@ -26,6 +26,11 @@ type Message = {
         url: string;
     };
     integrityHash?: string;
+    replyTo?: {
+        id: string;
+        text: string;
+        sender: 'me' | 'them';
+    };
 }
 
 const mockMessages: Message[] = [
@@ -44,6 +49,7 @@ export function ChatInterface() {
     const [input, setInput] = useState("");
     const [isScanning, setIsScanning] = useState(false);
     const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+    const [replyTo, setReplyTo] = useState<Message | null>(null);
     const [showAIPanel, setShowAIPanel] = useState(false);
     const [fileUpload, setFileUpload] = useState<File | null>(null);
     const [selectedChannel, setSelectedChannel] = useState("general");
@@ -129,7 +135,12 @@ export function ChatInterface() {
                         size: m.file_size,
                         name: m.file_type || "Encrypted File"
                     } : undefined,
-                    integrityHash: m.integrity_hash
+                    integrityHash: m.integrity_hash,
+                    replyTo: m.reply_to ? {
+                        id: m.reply_to.id,
+                        text: m.reply_to.text,
+                        sender: m.reply_to.sender
+                    } : undefined
                 })));
             }
         } catch (error) {
@@ -188,6 +199,7 @@ export function ChatInterface() {
         setMessages(prev => [...prev, newMessage]);
         setInput("");
         setFileUpload(null);
+        setReplyTo(null);
         setIsScanning(true);
 
         // Simulate AI Scan Delay for UX
@@ -208,7 +220,8 @@ export function ChatInterface() {
                         file_size: fileData?.size,
                         integrity_hash: integrityHash,
                         channel_id: selectedChannel,
-                        ttl_seconds: ttl
+                        ttl_seconds: ttl,
+                        reply_to_id: replyTo?.id
                     })
                 });
 
@@ -489,6 +502,14 @@ export function ChatInterface() {
                                 msg.status === 'blocked' ? "!border-rose-500/50 !bg-rose-950/20" : "",
                                 selectedMessage?.id === msg.id ? "ring-2 ring-purple-500 ring-offset-2 ring-offset-slate-900 !border-purple-500/50" : ""
                             )}>
+                                {/* Reply Context Display */}
+                                {msg.replyTo && (
+                                    <div className="mb-2 p-2 rounded bg-slate-900/50 border-l-2 border-teal-500 text-xs opacity-70 flex flex-col gap-0.5 relative overflow-hidden">
+                                        <span className="font-bold text-teal-400 capitalize">{msg.replyTo.sender === 'me' ? 'You' : 'Officer'}</span>
+                                        <span className="truncate">{msg.replyTo.text}</span>
+                                    </div>
+                                )}
+
                                 {/* Status Icons */}
                                 <div className="absolute -top-3 right-2 flex gap-1">
                                     {msg.risk?.opsec_risk === 'HIGH' && (
@@ -546,6 +567,17 @@ export function ChatInterface() {
                                     )}
                                     <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                 </div>
+
+                                {/* Hover Actions: Reply Button */}
+                                <div className="absolute top-2 -left-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setReplyTo(msg); fileInputRef.current?.focus(); }}
+                                        className="p-1.5 bg-slate-800 rounded-full border border-slate-700 hover:bg-teal-500/20 hover:text-teal-400 hover:border-teal-500/50 transition-colors"
+                                        title="Reply"
+                                    >
+                                        <div className="w-4 h-4 -scale-x-100">➥</div>
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     ))}
@@ -562,6 +594,18 @@ export function ChatInterface() {
                             <button onClick={() => setFileUpload(null)} className="ml-2 hover:text-white p-1">×</button>
                         </div>
                     )}
+
+                    {/* Replying Banner */}
+                    {replyTo && (
+                        <div className="flex items-center justify-between p-2 mb-2 bg-slate-800/80 border-l-2 border-teal-500 rounded text-xs animate-in slide-in-from-bottom-2 fade-in">
+                            <div className="flex flex-col">
+                                <span className="font-bold text-teal-400 mb-0.5">Replying to {replyTo.sender === 'me' ? 'yourself' : 'Officer'}</span>
+                                <span className="text-slate-400 truncate max-w-[200px]">{replyTo.text}</span>
+                            </div>
+                            <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-slate-700 rounded-full text-slate-500 hover:text-white">✕</button>
+                        </div>
+                    )}
+
                     <div className="relative max-w-4xl mx-auto flex items-center gap-2">
                         <input
                             type="file"

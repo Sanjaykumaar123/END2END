@@ -20,6 +20,7 @@ class MessageResponse(BaseModel):
     file_type: Optional[str] = None
     file_size: Optional[str] = None
     integrity_hash: Optional[str] = None
+    reply_to: Optional[dict] = None
     
     class Config:
         from_attributes = True
@@ -151,6 +152,15 @@ def get_messages(
             "explanation": "Analysis complete"
         }
 
+        reply_to_data = None
+        if msg.reply_to:
+            reply_sender_type = "me" if msg.reply_to.sender_id == current_user.id else "them"
+            reply_to_data = {
+                "id": msg.reply_to.id,
+                "text": msg.reply_to.content_encrypted,
+                "sender": reply_sender_type
+            }
+
         response_messages.append({
             "id": msg.id,
             "text": msg.content_encrypted, # In real app, decrypt here or on client
@@ -161,7 +171,8 @@ def get_messages(
             "file_url": msg.file_url,
             "file_type": msg.file_type,
             "file_size": msg.file_size,
-            "integrity_hash": msg.integrity_hash
+            "integrity_hash": msg.integrity_hash,
+            "reply_to": reply_to_data
         })
         
     return response_messages
