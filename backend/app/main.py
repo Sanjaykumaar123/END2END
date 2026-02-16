@@ -18,9 +18,7 @@ from app.models.user import User
 from app.models.message import Message
 from app.core import security
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-import traceback
+
 
 # ... (Previous imports remain same)
 
