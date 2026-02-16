@@ -27,9 +27,15 @@ if DATABASE_URL:
     # 2. Remove surrounding quotes (single or double)
     DATABASE_URL = DATABASE_URL.strip().strip("'").strip('"')
 
-    # 3. Handle specific Neon params (pg8000 doesn't like channel_binding sometimes)
-    # We will let the URL pass, but typically we might need to remove incompatible query params if they cause issues.
-    # For now, just fixing the prefix/quotes is the biggest win.
+    # 3. Handle specific Neon params (pg8000 doesn't like channel_binding/sslmode in URL)
+    # pg8000 uses ssl_context passed in connect_args, so these query params cause "unexpected keyword argument" errors
+    if "?" in DATABASE_URL:
+        # Strip common problematic params
+        DATABASE_URL = DATABASE_URL.replace("sslmode=require", "").replace("channel_binding=require", "")
+        # Clean up double && or trailing/leading ?/&
+        DATABASE_URL = DATABASE_URL.replace("?&", "?").replace("&&", "&").strip("&")
+        if DATABASE_URL.endswith("?"):
+            DATABASE_URL = DATABASE_URL[:-1]
 
     try:
         # Production / Persistent DB (e.g. Neon, Render, Supabase)
