@@ -7,7 +7,7 @@ from app.core.config import settings
 
 # Prioritize Argon2 to avoid bcrypt length limits/crashes on Vercel
 # Bcrypt is kept as fallback for verifying existing hashes
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 ALGORITHM = "HS256"
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
