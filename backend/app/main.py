@@ -11,7 +11,7 @@ import traceback
 
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import router as api_router
-from app.db.session import SessionLocal, engine
+from app.db.session import SessionLocal, engine, DB_CONNECTION_ERROR
 # Explicit imports of Base and Models triggers registration in Base.metadata
 from app.db.base import Base
 from app.models.user import User
@@ -119,5 +119,6 @@ def health_check():
         "user_count": user_count,
         "first_user_email": first_user,
         "tables": list(Base.metadata.tables.keys()),
-        "db_url_masked": str(engine.url)[:15] + "..." # Security: Don't explicitly show full creds
+        "db_url_masked": str(engine.url)[:15] + "...", # Security: Don't explicitly show full creds
+        "db_connection_error": str(DB_CONNECTION_ERROR) if DB_CONNECTION_ERROR else None
     }

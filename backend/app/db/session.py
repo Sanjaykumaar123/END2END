@@ -13,6 +13,7 @@ import shutil
 from sqlalchemy.pool import StaticPool
 
 # Prioritize connection string from environment variable (e.g. Vercel Postgres, Neon, Render)
+DB_CONNECTION_ERROR = None
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL:
@@ -28,6 +29,7 @@ if DATABASE_URL:
             
         engine = create_engine(DATABASE_URL)
     except Exception as e:
+        DB_CONNECTION_ERROR = str(e)
         print(f"DATABASE CONNECTION FAILED AT IMPORT: {e}")
         # Fallback to in-memory SQLite to prevent crash
         DATABASE_URL = "sqlite:///:memory:"
