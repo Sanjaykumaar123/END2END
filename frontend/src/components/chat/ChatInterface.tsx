@@ -215,7 +215,7 @@ export function ChatInterface() {
         const interval = setInterval(() => {
             fetchMessages();
             // fetchDms(); // Optional: polling DMs
-        }, 3000);
+        }, 800);
         return () => clearInterval(interval);
     }, [selectedChannel]);
 
@@ -263,61 +263,57 @@ export function ChatInterface() {
         setReplyTo(null);
         setIsScanning(true);
 
-        // Simulate AI Scan Delay for UX
-        setTimeout(async () => {
-            // Backend API Call
-            let risk: RiskResult;
-            try {
-                const res = await fetch('/api/v1/threat-intel/scan', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        lines: newMessage.text || "[Encrypted File Attachment]",
-                        file_url: fileData?.url,
-                        file_type: fileData?.type,
-                        file_size: fileData?.size,
-                        integrity_hash: integrityHash,
-                        channel_id: selectedChannel,
-                        ttl_seconds: ttl,
-                        reply_to_id: replyTo?.id
-                    })
-                });
+        // Backend API Call
+        let risk: RiskResult;
+        try {
+            const res = await fetch('/api/v1/threat-intel/scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    lines: newMessage.text || "[Encrypted File Attachment]",
+                    file_url: fileData?.url,
+                    file_type: fileData?.type,
+                    file_size: fileData?.size,
+                    integrity_hash: integrityHash,
+                    channel_id: selectedChannel,
+                    ttl_seconds: ttl,
+                    reply_to_id: replyTo?.id
+                })
+            });
 
-                if (res.status === 401) {
-                    window.location.href = '/login';
-                    throw new Error('Unauthorized');
-                }
-
-                if (!res.ok) throw new Error('API Error');
-                risk = await res.json();
-            } catch (e) {
-                console.warn("Backend unavailable or Auth failed, using simulation.", e);
-                // Fallback for demo if auth fails or backend is down
-                risk = await mockScan(newMessage.text || "File Attachment");
+            if (res.status === 401) {
+                window.location.href = '/login';
+                throw new Error('Unauthorized');
             }
 
-            setMessages(prev => prev.map(m =>
-                m.id === newMessage.id ? { ...m, status: risk.opsec_risk === 'HIGH' ? 'blocked' : 'sent', risk } : m
-            ));
-            setIsScanning(false);
+            if (!res.ok) throw new Error('API Error');
+            risk = await res.json();
+        } catch (e) {
+            console.warn("Backend unavailable or Auth failed, using simulation.", e);
+            // Fallback for demo if auth fails or backend is down
+            risk = await mockScan(newMessage.text || "File Attachment");
+        }
 
-            // Auto-reply simulation
-            setTimeout(() => {
-                const reply: Message = {
-                    id: (Date.now() + 1).toString(),
-                    text: "Copy that. proceeding with caution.",
-                    sender: 'them',
-                    timestamp: new Date(),
-                    status: 'sent',
-                    risk: { ai_score: 5, opsec_risk: 'SAFE', phishing_risk: 'LOW', explanation: 'Safe response' }
-                };
-                setMessages(prev => [...prev, reply]);
-            }, 2000);
+        setMessages(prev => prev.map(m =>
+            m.id === newMessage.id ? { ...m, status: risk.opsec_risk === 'HIGH' ? 'blocked' : 'sent', risk } : m
+        ));
+        setIsScanning(false);
 
-        }, 1500);
+        // Auto-reply simulation
+        setTimeout(() => {
+            const reply: Message = {
+                id: (Date.now() + 1).toString(),
+                text: "Copy that. proceeding with caution.",
+                sender: 'them',
+                timestamp: new Date(),
+                status: 'sent',
+                risk: { ai_score: 5, opsec_risk: 'SAFE', phishing_risk: 'LOW', explanation: 'Safe response' }
+            };
+            setMessages(prev => [...prev, reply]);
+        }, 500);
     };
 
     const handleAddDM = async () => {
