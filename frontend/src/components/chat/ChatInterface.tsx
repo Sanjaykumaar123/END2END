@@ -178,7 +178,7 @@ export function ChatInterface() {
                             nextMap.set(committedId, {
                                 id: committedId,
                                 text: backendMsg.content_encrypted || backendMsg.text,
-                                sender: backendMsg.sender_id === backendMsg.receiver_id ? 'me' : (backendMsg.sender === 'me' ? 'me' : 'them'),
+                                sender: (backendMsg.sender === 'me' ? 'me' : 'them'),
                                 timestamp: new Date(backendMsg.timestamp),
                                 status: backendMsg.risk?.opsec_risk === 'HIGH' ? 'blocked' : 'sent',
                                 risk: backendMsg.risk,
