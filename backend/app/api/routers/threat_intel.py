@@ -20,6 +20,7 @@ class ScanRequest(BaseModel):
     reply_to_id: int | None = None
 
 class ScanResponse(BaseModel):
+    message_id: int
     ai_score: float
     opsec_risk: str
     phishing_risk: str
@@ -74,4 +75,7 @@ async def scan(
     db.commit()
     db.refresh(db_message)
     
-    return result
+    return {
+        "message_id": db_message.id,
+        **result
+    }

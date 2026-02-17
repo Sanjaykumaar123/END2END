@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
 
 type RiskResult = {
+    message_id?: number;
     ai_score: number;
     opsec_risk: "SAFE" | "SENSITIVE" | "HIGH";
     phishing_risk: "LOW" | "MODERATE" | "HIGH";
@@ -298,7 +299,12 @@ export function ChatInterface() {
         }
 
         setMessages(prev => prev.map(m =>
-            m.id === newMessage.id ? { ...m, status: risk.opsec_risk === 'HIGH' ? 'blocked' : 'sent', risk } : m
+            m.id === newMessage.id ? {
+                ...m,
+                id: risk.message_id ? risk.message_id.toString() : m.id,
+                status: risk.opsec_risk === 'HIGH' ? 'blocked' : 'sent',
+                risk
+            } : m
         ));
         setIsScanning(false);
 
