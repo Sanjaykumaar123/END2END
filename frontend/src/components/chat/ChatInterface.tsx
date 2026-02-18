@@ -101,124 +101,64 @@ export function ChatInterface() {
                 // Only merge in messages that are NOT in our local "scanning" list? 
                 // OR, just simply append incoming messages that are NEW?
 
-                // Let's just use strict replacement for now, BUT we need to handle the "scanning" UI. 
-                // If the backend returns the message, it likely has a database ID. 
-                // Our local message has `Date.now().toString()`. 
-                // Mmm, synchronization is tricky without WebSockets or proper ID generation.
 
-                // SIMPLIFICATION:
-                // We will poll, but we will filter out messages that we ALREADY have locally by ID?? 
-                // No, local IDs are different from DB IDs.
-
-                // Let's just append messages from "them" that we don't have? 
-                // Or easier: Just use the backend as source of truth, but maybe keep "scanning" ones 
-                // visually separate until they confirm? 
-
-                // Let's go with: Backend is source of truth. 
-                // When we send, we push to a `pendingMessages` queue? 
-                // No, that's too complex for this task.
-
-                // OPTION 3: Just fetch and replace. 
-                // The backend `get_messages` returns ALL messages. 
-                // If we replace, the "scanning" message will disappear and be replaced by the "sent" message from DB 
-                // (since we save it to DB in /scan). 
-                // The only issue is the ID mismatch. Local: "123456789", DB: "1". 
-                // UI key will change -> weird flash.
-
-                // Hack: We won't fix the flash for now. It renders, it works. 
-                // Using `data.map(m => ({ ...m, timestamp: new Date(m.timestamp) }))` to fix Date object.
                 setMessages(prev => {
-                    const nextMap = new Map(prev.map(m => [m.id, m]));
+                    // 1. Convert Backend Data to Message Objects
+                    const backendMessages: Message[] = data.map((backendMsg: any) => ({
+                        id: backendMsg.id.toString(),
+                        text: backendMsg.content_encrypted || backendMsg.text, // Handle potential field name diffs
+                        sender: (backendMsg.sender === 'me' ? 'me' : 'them'),
+                        timestamp: new Date(backendMsg.timestamp.endsWith("Z") ? backendMsg.timestamp : backendMsg.timestamp + "Z"),
+                        status: backendMsg.risk?.opsec_risk === 'HIGH' ? 'blocked' : 'sent',
+                        risk: backendMsg.risk,
+                        file: backendMsg.file_url ? {
+                            url: backendMsg.file_url,
+                            type: backendMsg.file_type,
+                            size: backendMsg.file_size,
+                            name: backendMsg.file_type || "Encrypted File"
+                        } : undefined,
+                        integrityHash: backendMsg.integrity_hash,
+                        replyTo: backendMsg.reply_to ? {
+                            id: backendMsg.reply_to.id,
+                            text: backendMsg.reply_to.text,
+                            sender: backendMsg.reply_to.sender
+                        } : undefined
+                    }));
 
-                    data.forEach((backendMsg: any) => {
-                        const committedId = backendMsg.id.toString();
+                    // 2. Identify Pending Local Messages (Scanning/Unconfirmed)
+                    // These are messages with temporary IDs (long timestamps) created locally
+                    const pendingLocalMessages = prev.filter(m => m.id.length > 10 && m.sender === 'me');
 
-                        // Check if we already have this committed message by ID
-                        if (nextMap.has(committedId)) {
-                            // Update existing committed message (e.g. status change)
-                            const existing = nextMap.get(committedId)!;
-                            nextMap.set(committedId, {
-                                ...existing,
-                                ...backendMsg,
-                                text: backendMsg.content_encrypted || backendMsg.text,
-                                timestamp: new Date(backendMsg.timestamp.endsWith("Z") ? backendMsg.timestamp : backendMsg.timestamp + "Z"),
-                                // Preserve local risk/file if needed, but backend is truth
-                                file: backendMsg.file_url ? {
-                                    url: backendMsg.file_url,
-                                    type: backendMsg.file_type,
-                                    size: backendMsg.file_size,
-                                    name: backendMsg.file_type || "Encrypted File"
-                                } : undefined,
-                                integrityHash: backendMsg.integrity_hash,
-                                replyTo: backendMsg.reply_to ? {
-                                    id: backendMsg.reply_to.id,
-                                    text: backendMsg.reply_to.text,
-                                    sender: backendMsg.reply_to.sender
-                                } : undefined
-                            });
-                        } else {
-                            // This is a new message from backend (ID not in map).
-                            // Try to find a matching "scanning" local message to replace (deduplicate)
-                            let matchFound = false;
-                            const backendText = backendMsg.content_encrypted || backendMsg.text;
-
-                            // Better deduplication: Check for any local message with same content and sender, regardless of status
-                            // because handleSend might have updated status to 'sent' but ID update failed or raced.
-                            // Only target long IDs (timestamps) which are local.
-                            for (const [key, val] of Array.from(nextMap.entries())) {
-                                const isTempId = val.id.length > 10;
-                                const isMe = val.sender === 'me';
-                                const isStatusValid = val.status === 'scanning' || val.status === 'sent';
-
-                                if (!isTempId || !isMe || !isStatusValid) continue;
-
-                                // STRICT MATCH: Use integrityHash if available (most reliable, includes local timestamp)
-                                if (val.integrityHash && backendMsg.integrity_hash && val.integrityHash === backendMsg.integrity_hash) {
-                                    console.log("Deduplicating by hash:", val.integrityHash);
-                                    nextMap.delete(key);
-                                    matchFound = true;
-                                } else {
-                                    // FALLBACK MATCH: Text content (Aggressive)
-                                    const localText = val.text || (val.file ? "[Encrypted File Attachment]" : "");
-                                    const normalizedLocal = localText.trim();
-                                    const normalizedBackend = backendText.trim();
-
-                                    if (normalizedLocal === normalizedBackend) {
-                                        console.log("Deduplicating by text:", normalizedLocal);
-                                        nextMap.delete(key);
-                                        matchFound = true;
-                                    }
-                                }
-                            }
-
-                            // Add the backend message
-                            nextMap.set(committedId, {
-                                id: committedId,
-                                text: backendText,
-                                sender: (backendMsg.sender === 'me' ? 'me' : 'them'),
-                                timestamp: new Date(backendMsg.timestamp.endsWith("Z") ? backendMsg.timestamp : backendMsg.timestamp + "Z"),
-                                status: backendMsg.risk?.opsec_risk === 'HIGH' ? 'blocked' : 'sent',
-                                risk: backendMsg.risk,
-                                file: backendMsg.file_url ? {
-                                    url: backendMsg.file_url,
-                                    type: backendMsg.file_type,
-                                    size: backendMsg.file_size,
-                                    name: backendMsg.file_type || "Encrypted File"
-                                } : undefined,
-                                integrityHash: backendMsg.integrity_hash,
-                                replyTo: backendMsg.reply_to ? {
-                                    id: backendMsg.reply_to.id,
-                                    text: backendMsg.reply_to.text,
-                                    sender: backendMsg.reply_to.sender
-                                } : undefined
-                            });
+                    // 3. Filter Pending Messages: Remove if they are now in Backend
+                    const uniquePending = pendingLocalMessages.filter(localMsg => {
+                        // Check exact hash match
+                        if (localMsg.integrityHash && backendMessages.some(bm => bm.integrityHash === localMsg.integrityHash)) {
+                            console.log("Removing pending msg (hash match):", localMsg.id);
+                            return false;
                         }
+
+                        // Check text match (fallback for legacy or missing hash)
+                        // Only match if within reasonable time window (e.g. 10 seconds)
+                        const matchingBackend = backendMessages.find(bm =>
+                            bm.text === localMsg.text &&
+                            bm.sender === 'me' &&
+                            Math.abs(bm.timestamp.getTime() - localMsg.timestamp.getTime()) < 10000
+                        );
+
+                        if (matchingBackend) {
+                            console.log("Removing pending msg (text match):", localMsg.id);
+                            return false;
+                        }
+
+                        return true;
                     });
 
-                    // Convert map back to array and sort
-                    return Array.from(nextMap.values()).sort((a, b) =>
+                    // 4. Merge: Backend Truth + Remaining Pending
+                    const merged = [...backendMessages, ...uniquePending].sort((a, b) =>
                         a.timestamp.getTime() - b.timestamp.getTime()
                     );
+
+                    return merged;
                 });
             }
         } catch (error) {
