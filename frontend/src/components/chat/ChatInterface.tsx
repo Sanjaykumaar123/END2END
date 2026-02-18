@@ -174,24 +174,20 @@ export function ChatInterface() {
 
                                 // STRICT MATCH: Use integrityHash if available (most reliable, includes local timestamp)
                                 if (val.integrityHash && backendMsg.integrity_hash && val.integrityHash === backendMsg.integrity_hash) {
+                                    console.log("Deduplicating by hash:", val.integrityHash);
                                     nextMap.delete(key);
                                     matchFound = true;
-                                    break;
-                                }
+                                } else {
+                                    // FALLBACK MATCH: Text content (Aggressive)
+                                    const localText = val.text || (val.file ? "[Encrypted File Attachment]" : "");
+                                    const normalizedLocal = localText.trim();
+                                    const normalizedBackend = backendText.trim();
 
-                                // FALLBACK MATCH: Text content (Aggressive)
-                                // If the text matches, it's the same message. Period.
-                                const localText = val.text || (val.file ? "[Encrypted File Attachment]" : "");
-
-                                // Normalize text for comparison (trim)
-                                const normalizedLocal = localText.trim();
-                                const normalizedBackend = backendText.trim();
-
-                                if (normalizedLocal === normalizedBackend) {
-                                    // Found a match! Delete the local temp message
-                                    nextMap.delete(key);
-                                    matchFound = true;
-                                    break;
+                                    if (normalizedLocal === normalizedBackend) {
+                                        console.log("Deduplicating by text:", normalizedLocal);
+                                        nextMap.delete(key);
+                                        matchFound = true;
+                                    }
                                 }
                             }
 
@@ -733,9 +729,15 @@ export function ChatInterface() {
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleSend();
+                                }
+                            }}
                             placeholder="Type a secure message..."
-                            className="w-full bg-slate-950/50 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 transition-all placeholder:text-slate-600"
+                            className="w-full bg-slate-950/50 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 transition-all placeholder:text-slate-600 font-mono"
                             disabled={isScanning}
                         />
                         {/* Scan line effect when focused or send */}

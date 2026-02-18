@@ -32,6 +32,24 @@ async def scan(
     current_user: User = Depends(deps.get_current_user),
     db: Session = Depends(deps.get_db)
 ):
+    # DEDUPLICATION: Prevent duplicate messages from race conditions
+    if request.integrity_hash:
+        recent_duplicate = db.query(Message).filter(
+            Message.sender_id == current_user.id,
+            Message.integrity_hash == request.integrity_hash,
+            Message.timestamp > datetime.utcnow() - timedelta(seconds=10)
+        ).first()
+        
+        if recent_duplicate:
+            # If we already have this message, return the existing result instead of saving twice
+            return {
+                "message_id": recent_duplicate.id,
+                "ai_score": recent_duplicate.ai_score or 0.0,
+                "opsec_risk": recent_duplicate.opsec_risk or "SAFE",
+                "phishing_risk": recent_duplicate.phishing_risk or "LOW",
+                "explanation": "Duplicate message recognized and merged."
+            }
+
     # Perform scan
     result = await scan_message(request.lines)
     
