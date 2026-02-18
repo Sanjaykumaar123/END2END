@@ -141,7 +141,7 @@ export function ChatInterface() {
                                 ...existing,
                                 ...backendMsg,
                                 text: backendMsg.content_encrypted || backendMsg.text,
-                                timestamp: new Date(backendMsg.timestamp),
+                                timestamp: new Date(backendMsg.timestamp.endsWith("Z") ? backendMsg.timestamp : backendMsg.timestamp + "Z"),
                                 // Preserve local risk/file if needed, but backend is truth
                                 file: backendMsg.file_url ? {
                                     url: backendMsg.file_url,
@@ -160,13 +160,17 @@ export function ChatInterface() {
                             // This is a new message from backend (ID not in map).
                             // Try to find a matching "scanning" local message to replace (deduplicate)
                             let matchFound = false;
-                            // Fix TS iterator error
+                            const backendText = backendMsg.content_encrypted || backendMsg.text;
+
+                            // Better deduplication: Check for any local message with same content and sender, regardless of status
+                            // because handleSend might have updated status to 'sent' but ID update failed or raced.
+                            // Only target long IDs (timestamps) which are local.
                             for (const [key, val] of Array.from(nextMap.entries())) {
-                                // Match criteria: same sender ('me'), status is 'scanning', same text content
-                                const backendText = backendMsg.content_encrypted || backendMsg.text;
+                                const localText = val.text || (val.file ? "[Encrypted File Attachment]" : "");
                                 if (val.sender === 'me' &&
-                                    val.status === 'scanning' &&
-                                    val.text === backendText) {
+                                    (val.status === 'scanning' || val.status === 'sent') && // Check both statuses
+                                    val.id.length > 10 && // Ensure it is a temporary ID (timestamp)
+                                    localText === backendText) {
 
                                     // Found a match! Delete the local temp message
                                     nextMap.delete(key);
@@ -178,9 +182,9 @@ export function ChatInterface() {
                             // Add the backend message
                             nextMap.set(committedId, {
                                 id: committedId,
-                                text: backendMsg.content_encrypted || backendMsg.text,
+                                text: backendText,
                                 sender: (backendMsg.sender === 'me' ? 'me' : 'them'),
-                                timestamp: new Date(backendMsg.timestamp),
+                                timestamp: new Date(backendMsg.timestamp.endsWith("Z") ? backendMsg.timestamp : backendMsg.timestamp + "Z"),
                                 status: backendMsg.risk?.opsec_risk === 'HIGH' ? 'blocked' : 'sent',
                                 risk: backendMsg.risk,
                                 file: backendMsg.file_url ? {
@@ -213,6 +217,7 @@ export function ChatInterface() {
     useEffect(() => {
         fetchMessages();
         fetchDms(); // Fetch active DMs
+        // Poll more frequently for faster updates
         const interval = setInterval(() => {
             fetchMessages();
             // fetchDms(); // Optional: polling DMs

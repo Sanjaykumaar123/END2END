@@ -9,7 +9,7 @@ class Message(Base):
     id = Column(Integer, primary_key=True, index=True)
     sender_id = Column(Integer, ForeignKey("users.id"))
     content_encrypted = Column(String)  # Storing encrypted content
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     
     # Threat Analysis Results
     ai_score = Column(Float)
