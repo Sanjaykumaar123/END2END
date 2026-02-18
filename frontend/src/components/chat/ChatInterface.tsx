@@ -241,8 +241,11 @@ export function ChatInterface() {
         return () => clearInterval(interval);
     }, [selectedChannel]);
 
+    const sendingRef = useRef(false);
+
     const handleSend = async () => {
         if (!input.trim() && !fileUpload) return;
+        if (sendingRef.current) return;
 
         // Check auth
         const token = localStorage.getItem("token");
@@ -250,6 +253,8 @@ export function ChatInterface() {
             window.location.href = '/login';
             return;
         }
+
+        sendingRef.current = true;
 
         // Prepare File Data
         let fileData = undefined;
@@ -286,7 +291,7 @@ export function ChatInterface() {
         setIsScanning(true);
 
         // Backend API Call
-        let risk: RiskResult;
+        let risk: RiskResult | null = null;
         try {
             const res = await fetch('/api/v1/threat-intel/scan', {
                 method: 'POST',
@@ -311,36 +316,51 @@ export function ChatInterface() {
                 throw new Error('Unauthorized');
             }
 
-            if (!res.ok) throw new Error('API Error');
-            risk = await res.json();
+            if (res.ok) {
+                risk = await res.json();
+            }
         } catch (e) {
-            console.warn("Backend unavailable or Auth failed, using simulation.", e);
-            // Fallback for demo if auth fails or backend is down
-            risk = await mockScan(newMessage.text || "File Attachment");
+            console.warn("Backend error, relying on poll for confirmation.", e);
         }
 
-        setMessages(prev => prev.map(m =>
-            m.id === newMessage.id ? {
-                ...m,
-                id: risk.message_id ? risk.message_id.toString() : m.id,
-                status: risk.opsec_risk === 'HIGH' ? 'blocked' : 'sent',
-                risk
-            } : m
-        ));
-        setIsScanning(false);
+        if (risk) {
+            setMessages(prev => {
+                const nextMap = new Map(prev.map(m => [m.id, m]));
+                // Remove the temp ID
+                if (nextMap.has(newMessage.id)) nextMap.delete(newMessage.id);
+                // Add/Update the committed ID
+                const committedId = risk!.message_id ? risk!.message_id.toString() : newMessage.id;
+                nextMap.set(committedId, {
+                    ...newMessage,
+                    id: committedId,
+                    status: (risk!.opsec_risk === 'HIGH' ? 'blocked' : 'sent') as any,
+                    risk: risk!
+                });
+                return Array.from(nextMap.values()).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+            });
+        }
 
-        // Auto-reply simulation
+        setIsScanning(false);
+        sendingRef.current = false;
+
+        // Auto-reply simulation (ONLY if backend didn't already return messages from "them")
+        // In a real app, this would be handled by the backend or a separate process.
         setTimeout(() => {
-            const reply: Message = {
-                id: (Date.now() + 1).toString(),
-                text: "Copy that. proceeding with caution.",
-                sender: 'them',
-                timestamp: new Date(),
-                status: 'sent',
-                risk: { ai_score: 5, opsec_risk: 'SAFE', phishing_risk: 'LOW', explanation: 'Safe response' }
-            };
-            setMessages(prev => [...prev, reply]);
-        }, 500);
+            setMessages(prev => {
+                const hasRecentThem = prev.slice(-3).some(m => m.sender === 'them');
+                if (hasRecentThem) return prev; // Avoid duplicate mock replies
+
+                const reply: Message = {
+                    id: (Date.now() + 1).toString(),
+                    text: "Copy that. proceeding with caution.",
+                    sender: 'them',
+                    timestamp: new Date(),
+                    status: 'sent',
+                    risk: { ai_score: 5, opsec_risk: 'SAFE', phishing_risk: 'LOW', explanation: 'Safe response' }
+                };
+                return [...prev, reply];
+            });
+        }, 1500); // Give backend time to poll first
     };
 
     const handleAddDM = async () => {
