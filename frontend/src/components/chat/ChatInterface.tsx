@@ -179,13 +179,19 @@ export function ChatInterface() {
                                     break;
                                 }
 
-                                // FALLBACK MATCH: Text content (if hash missing for some reason)
+                                // FALLBACK MATCH: Text content (Aggressive)
+                                // If the text matches, it's the same message. Period.
                                 const localText = val.text || (val.file ? "[Encrypted File Attachment]" : "");
-                                if (localText === backendText) {
+
+                                // Normalize text for comparison (trim)
+                                const normalizedLocal = localText.trim();
+                                const normalizedBackend = backendText.trim();
+
+                                if (normalizedLocal === normalizedBackend) {
                                     // Found a match! Delete the local temp message
                                     nextMap.delete(key);
                                     matchFound = true;
-                                    break; // Only replace one local message per backend message
+                                    break;
                                 }
                             }
 
