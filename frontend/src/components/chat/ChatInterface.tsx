@@ -166,12 +166,22 @@ export function ChatInterface() {
                             // because handleSend might have updated status to 'sent' but ID update failed or raced.
                             // Only target long IDs (timestamps) which are local.
                             for (const [key, val] of Array.from(nextMap.entries())) {
-                                const localText = val.text || (val.file ? "[Encrypted File Attachment]" : "");
-                                if (val.sender === 'me' &&
-                                    (val.status === 'scanning' || val.status === 'sent') && // Check both statuses
-                                    val.id.length > 10 && // Ensure it is a temporary ID (timestamp)
-                                    localText === backendText) {
+                                const isTempId = val.id.length > 10;
+                                const isMe = val.sender === 'me';
+                                const isStatusValid = val.status === 'scanning' || val.status === 'sent';
 
+                                if (!isTempId || !isMe || !isStatusValid) continue;
+
+                                // STRICT MATCH: Use integrityHash if available (most reliable, includes local timestamp)
+                                if (val.integrityHash && backendMsg.integrity_hash && val.integrityHash === backendMsg.integrity_hash) {
+                                    nextMap.delete(key);
+                                    matchFound = true;
+                                    break;
+                                }
+
+                                // FALLBACK MATCH: Text content (if hash missing for some reason)
+                                const localText = val.text || (val.file ? "[Encrypted File Attachment]" : "");
+                                if (localText === backendText) {
                                     // Found a match! Delete the local temp message
                                     nextMap.delete(key);
                                     matchFound = true;
