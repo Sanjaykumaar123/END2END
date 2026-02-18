@@ -238,10 +238,24 @@ export function ChatInterface() {
     }, [selectedChannel]);
 
     const sendingRef = useRef(false);
+    const lastSentRef = useRef<{ text: string, time: number }>({ text: "", time: 0 });
 
     const handleSend = async () => {
-        if (!input.trim() && !fileUpload) return;
-        if (sendingRef.current) return;
+        const trimmedInput = input.trim();
+        if (!trimmedInput && !fileUpload) return;
+
+        // LOCK 1: Ref-based lock for sequential calls
+        if (sendingRef.current) {
+            console.log("Send blocked: already sending");
+            return;
+        }
+
+        // LOCK 2: Time-based deduplication (Prevent identical text within 2 seconds)
+        const now = Date.now();
+        if (trimmedInput === lastSentRef.current.text && (now - lastSentRef.current.time) < 2000) {
+            console.log("Send blocked: identical message within 2s");
+            return;
+        }
 
         // Check auth
         const token = localStorage.getItem("token");
@@ -251,6 +265,8 @@ export function ChatInterface() {
         }
 
         sendingRef.current = true;
+        lastSentRef.current = { text: trimmedInput, time: now };
+        setIsScanning(true);
 
         // Prepare File Data
         let fileData = undefined;
@@ -264,27 +280,28 @@ export function ChatInterface() {
         }
 
         // Compute Integrity Hash (SHA-256 simulation)
-        const contentToHash = (input || "") + (fileData?.name || "") + Date.now();
+        // Use trimmedInput and now (the shared timestamp for this send session)
+        const contentToHash = (trimmedInput || "") + (fileData?.name || "") + now;
         const msgBuffer = new TextEncoder().encode(contentToHash);
         const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const integrityHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
         const newMessage: Message = {
-            id: Date.now().toString(),
-            text: input,
+            id: now.toString(),
+            text: trimmedInput,
             sender: 'me',
-            timestamp: new Date(),
+            timestamp: new Date(now),
             status: 'scanning',
             file: fileData,
             integrityHash: integrityHash
         };
 
+        // UI Update: Clear input immediately to visual feedback
         setMessages(prev => [...prev, newMessage]);
         setInput("");
         setFileUpload(null);
         setReplyTo(null);
-        setIsScanning(true);
 
         // Backend API Call
         let risk: RiskResult | null = null;
@@ -309,7 +326,7 @@ export function ChatInterface() {
 
             if (res.status === 401) {
                 window.location.href = '/login';
-                throw new Error('Unauthorized');
+                return;
             }
 
             if (res.ok) {
@@ -322,10 +339,11 @@ export function ChatInterface() {
         if (risk) {
             setMessages(prev => {
                 const nextMap = new Map(prev.map(m => [m.id, m]));
-                // Remove the temp ID
+                // Delete the temp ID used locally
                 if (nextMap.has(newMessage.id)) nextMap.delete(newMessage.id);
-                // Add/Update the committed ID
+                // Also check if poller already added the committed ID
                 const committedId = risk!.message_id ? risk!.message_id.toString() : newMessage.id;
+
                 nextMap.set(committedId, {
                     ...newMessage,
                     id: committedId,
@@ -337,14 +355,16 @@ export function ChatInterface() {
         }
 
         setIsScanning(false);
-        sendingRef.current = false;
+        // Delay unlocking slightly to completely clear the race window
+        setTimeout(() => {
+            sendingRef.current = false;
+        }, 500);
 
-        // Auto-reply simulation (ONLY if backend didn't already return messages from "them")
-        // In a real app, this would be handled by the backend or a separate process.
+        // Auto-reply simulation (ONLY if it hasn't been blocked)
         setTimeout(() => {
             setMessages(prev => {
-                const hasRecentThem = prev.slice(-3).some(m => m.sender === 'them');
-                if (hasRecentThem) return prev; // Avoid duplicate mock replies
+                const hasRecentThem = prev.slice(-3).some(m => m.sender === 'them' && m.timestamp.getTime() > now);
+                if (hasRecentThem) return prev;
 
                 const reply: Message = {
                     id: (Date.now() + 1).toString(),
@@ -356,7 +376,7 @@ export function ChatInterface() {
                 };
                 return [...prev, reply];
             });
-        }, 1500); // Give backend time to poll first
+        }, 2000);
     };
 
     const handleAddDM = async () => {
