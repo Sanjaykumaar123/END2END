@@ -24,6 +24,7 @@ class ScanResponse(BaseModel):
     ai_score: float
     opsec_risk: str
     phishing_risk: str
+    vulgar_risk: str
     explanation: str
 
 @router.post("/scan", response_model=ScanResponse)
@@ -71,7 +72,9 @@ async def scan(
     risk_score = result["ai_score"]
     opsec_risk = result["opsec_risk"]
     phishing_risk = result["phishing_risk"]
-    is_blocked = result["opsec_risk"] == "HIGH"
+    vulgar_risk = result.get("vulgar_risk", "CLEAN")
+    # Block if OPSEC is HIGH or message is vulgar
+    is_blocked = opsec_risk == "HIGH" or vulgar_risk == "VULGAR"
 
     db_message = Message(
         sender_id=current_user.id,
@@ -79,6 +82,7 @@ async def scan(
         ai_score=risk_score,
         opsec_risk=opsec_risk,
         phishing_risk=phishing_risk,
+        vulgar_risk=vulgar_risk,
         is_blocked=is_blocked,
         file_url=request.file_url,
         file_type=request.file_type,
@@ -97,3 +101,33 @@ async def scan(
         "message_id": db_message.id,
         **result
     }
+
+
+class DeleteLastRequest(BaseModel):
+    channel_id: str = "general"
+    count: int = 2  # Number of last messages to delete
+
+@router.delete("/last")
+async def delete_last_messages(
+    request: DeleteLastRequest,
+    current_user: User = Depends(deps.get_current_user),
+    db: Session = Depends(deps.get_db)
+):
+    """
+    Delete the last N messages from a channel.
+    """
+    # Fetch last N message IDs in this channel
+    last_msgs = (
+        db.query(Message)
+        .filter(Message.channel_id == request.channel_id)
+        .order_by(Message.id.desc())
+        .limit(request.count)
+        .all()
+    )
+    ids_to_delete = [m.id for m in last_msgs]
+    if not ids_to_delete:
+        raise HTTPException(status_code=404, detail="No messages found to delete.")
+
+    deleted = db.query(Message).filter(Message.id.in_(ids_to_delete)).delete(synchronize_session=False)
+    db.commit()
+    return {"deleted_count": deleted, "deleted_ids": ids_to_delete}

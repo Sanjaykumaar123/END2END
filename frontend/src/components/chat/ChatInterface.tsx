@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Shield, Lock, AlertTriangle, Eye, Activity, FileText, Brain, Key, Network, Paperclip, File, Download, CheckCircle } from "lucide-react";
+import { Send, Shield, Lock, AlertTriangle, Eye, Activity, FileText, Brain, Key, Network, Paperclip, File, Download, CheckCircle, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
 
@@ -10,6 +10,7 @@ type RiskResult = {
     ai_score: number;
     opsec_risk: "SAFE" | "SENSITIVE" | "HIGH";
     phishing_risk: "LOW" | "MODERATE" | "HIGH";
+    vulgar_risk?: "CLEAN" | "VULGAR";
     explanation: string;
 }
 
@@ -372,6 +373,33 @@ export function ChatInterface() {
         }
     };
 
+    const handleDeleteLastMessages = async (count: number = 2) => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        if (!confirm(`Delete the last ${count} messages from this channel?`)) return;
+        try {
+            const res = await fetch('/api/v1/threat-intel/last', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ channel_id: selectedChannel, count })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                console.log(`Deleted ${data.deleted_count} message(s):`, data.deleted_ids);
+                // Refresh messages
+                fetchMessages();
+            } else {
+                const err = await res.json();
+                alert('Delete failed: ' + (err.detail || 'Unknown error'));
+            }
+        } catch (e) {
+            console.error("Delete error", e);
+        }
+    };
+
     // Mock scan logic for UI demo
     const mockScan = async (text: string): Promise<RiskResult> => {
         const lower = text.toLowerCase();
@@ -534,6 +562,16 @@ export function ChatInterface() {
                             <Activity className="w-3 h-3 text-teal-400" />
                             <span>THREAT LEVEL: LOW</span>
                         </div>
+
+                        {/* Delete Last 2 Messages Button */}
+                        <button
+                            onClick={() => handleDeleteLastMessages(2)}
+                            className="bg-rose-950/30 border border-rose-500/30 rounded-lg px-3 py-1.5 flex items-center gap-2 hover:bg-rose-900/40 transition-colors"
+                            title="Delete last 2 messages"
+                        >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                            <span className="text-[10px] font-bold text-rose-400">DEL LAST 2</span>
+                        </button>
                     </div>
                 </header>
 
@@ -575,6 +613,11 @@ export function ChatInterface() {
                                     {msg.risk?.opsec_risk === 'HIGH' && (
                                         <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-lg flex items-center gap-1">
                                             <AlertTriangle className="w-3 h-3" /> OPSEC
+                                        </span>
+                                    )}
+                                    {msg.risk?.vulgar_risk === 'VULGAR' && (
+                                        <span className="bg-orange-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-lg flex items-center gap-1">
+                                            ⚠️ VULGAR
                                         </span>
                                     )}
                                     {msg.risk?.ai_score && msg.risk.ai_score > 50 && (
@@ -814,6 +857,30 @@ export function ChatInterface() {
                                                 </div>
                                                 <div className="text-xs text-slate-500 mt-2">
                                                     Transformer-based detection
+                                                </div>
+                                            </div>
+
+                                            {/* Vulgar Risk Card */}
+                                            <div className="bg-slate-800/50 border border-orange-500/20 rounded-lg p-4">
+                                                <div className="text-xs text-slate-400 mb-2">VULGAR / PROFANITY DETECTOR</div>
+                                                <div className="flex items-center justify-between">
+                                                    <span className={clsx(
+                                                        "text-2xl font-bold",
+                                                        currentMsg?.risk?.vulgar_risk === 'VULGAR' ? 'text-orange-400' : 'text-emerald-400'
+                                                    )}>
+                                                        {currentMsg?.risk?.vulgar_risk || 'CLEAN'}
+                                                    </span>
+                                                    <div className={clsx(
+                                                        "px-3 py-1 rounded-full text-xs font-bold",
+                                                        currentMsg?.risk?.vulgar_risk === 'VULGAR'
+                                                            ? 'bg-orange-500/20 text-orange-400'
+                                                            : 'bg-emerald-500/20 text-emerald-400'
+                                                    )}>
+                                                        {currentMsg?.risk?.vulgar_risk === 'VULGAR' ? 'FLAGGED' : 'SAFE'}
+                                                    </div>
+                                                </div>
+                                                <div className="text-xs text-slate-500 mt-2">
+                                                    NLP profanity classifier
                                                 </div>
                                             </div>
                                         </div>

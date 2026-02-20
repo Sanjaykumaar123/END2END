@@ -15,7 +15,8 @@ class Message(Base):
     ai_score = Column(Float)
     opsec_risk = Column(String) # "SAFE", "SENSITIVE", "HIGH"
     phishing_risk = Column(String) # "LOW", "MODERATE", "HIGH"
-    is_blocked = Column(Boolean, default=False) # Automatically blocked if HIGH risk
+    vulgar_risk = Column(String, default="CLEAN") # "CLEAN", "VULGAR"
+    is_blocked = Column(Boolean, default=False) # Automatically blocked if HIGH risk or VULGAR
     
     # New Features: File Sharing & Integrity
     file_url = Column(String, nullable=True)     # For encrypted file storage

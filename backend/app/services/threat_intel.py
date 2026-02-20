@@ -1,5 +1,6 @@
 import random
 import re
+from typing import List
 
 class ThreatIntelService:
     def __init__(self):
@@ -94,6 +95,46 @@ class ThreatIntelService:
             
         return "SAFE"
 
+    async def detect_vulgar(self, text: str) -> str:
+        """
+        Vulgar / Profanity Detection
+        Checks for explicit, offensive, or hate-speech language.
+        Returns "VULGAR" if detected, "CLEAN" otherwise.
+        """
+        text_lower = text.lower()
+
+        # Comprehensive vulgar / profanity word list
+        vulgar_words: List[str] = [
+            # Sexual / explicit
+            "fuck", "fucked", "fucker", "fucking", "fck", "f**k", "f*ck",
+            "shit", "sh*t", "bullshit",
+            "ass", "asshole", "arse",
+            "bitch", "b*tch",
+            "cock", "dick", "penis", "pussy", "vagina", "cunt", "c*nt",
+            "rape", "raped", "raping",
+            "sex", "porn", "pornography", "nude", "naked", "boobs", "tits",
+            "masturbate", "orgasm",
+            # Slurs / hate speech
+            "nigger", "nigga", "n*gger",
+            "faggot", "fag", "dyke",
+            "retard", "retarded",
+            "whore", "slut", "skank",
+            "bastard",
+            "damn", "hell",
+            # Drug / violence slang
+            "motherfucker", "mf", "son of a bitch",
+            "piss", "pissed",
+            "crap",
+        ]
+
+        # Build regex to detect whole words (avoids partial matches in normal words)
+        for word in vulgar_words:
+            pattern = r'\b' + re.escape(word) + r'\b'
+            if re.search(pattern, text_lower):
+                return "VULGAR"
+
+        return "CLEAN"
+
     async def detect_phishing(self, text: str) -> str:
         text_lower = text.lower()
         
@@ -119,6 +160,7 @@ class ThreatIntelService:
         ai_score = await self.detect_ai_generated(text)
         opsec_risk = await self.detect_opsec_risk(text)
         phishing_risk = await self.detect_phishing(text)
+        vulgar_risk = await self.detect_vulgar(text)
         
         explanation = []
         if ai_score > 70:
@@ -127,6 +169,8 @@ class ThreatIntelService:
             explanation.append(f"OPSEC Risk detected: {opsec_risk}")
         if phishing_risk != "LOW":
             explanation.append(f"Phishing Risk detected: {phishing_risk}")
+        if vulgar_risk == "VULGAR":
+            explanation.append("\u26a0\ufe0f Vulgar/Profanity content detected — message flagged.")
             
         if not explanation:
             explanation.append("Message appears safe.")
@@ -135,6 +179,7 @@ class ThreatIntelService:
             "ai_score": round(ai_score, 2),
             "opsec_risk": opsec_risk,
             "phishing_risk": phishing_risk,
+            "vulgar_risk": vulgar_risk,
             "explanation": " | ".join(explanation)
         }
 
