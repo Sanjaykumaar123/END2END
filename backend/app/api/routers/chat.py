@@ -149,7 +149,6 @@ def get_messages(
             "ai_score": msg.ai_score if msg.ai_score is not None else 0.0,
             "opsec_risk": msg.opsec_risk if msg.opsec_risk else "SAFE",
             "phishing_risk": msg.phishing_risk if msg.phishing_risk else "LOW",
-            "vulgar_risk": msg.vulgar_risk if msg.vulgar_risk else "CLEAN",
             "explanation": "Analysis complete"
         }
 
