@@ -4,7 +4,7 @@ websockets
 python-dotenv
 sqlalchemy
 pydantic-settings
-passlib[bcrypt]
+passlib[bcrypt,argon2]
 bcrypt
 python-multipart
 python-jose[cryptography]
@@ -13,3 +13,4 @@ anyio
 email-validator
 pyjwt
 argon2-cffi
+argon2-cffi-bindings
