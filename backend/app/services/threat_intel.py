@@ -82,7 +82,7 @@ class ThreatIntelService:
             return "SENSITIVE"
 
         # 3. Keyword Analysis
-        critical = ["bomb", "attack", "kill", "assassinate", "terrorism", "explosive", "weapon", "hostage", "nuclear"]
+        critical = ["bomb", "attack", "kill", "assassinate", "terrorism", "explosive", "weapon", "hostage", "nuclear", "rape"]
         sensitive = ["deployment", "location", "alpha", "bravo", "classified", "operation", "extract", "rendezvous"]
         
         if any(w in text_lower for w in critical):

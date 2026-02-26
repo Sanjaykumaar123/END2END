@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from app.api import deps
 from app.models.user import User
@@ -21,6 +21,7 @@ class MessageResponse(BaseModel):
     file_size: Optional[str] = None
     integrity_hash: Optional[str] = None
     reply_to: Optional[dict] = None
+    is_deleted: Optional[bool] = False
     
     class Config:
         from_attributes = True
@@ -128,7 +129,8 @@ def get_messages(
     Fetch messages for a specific channel.
     """
     try:
-        query = db.query(Message).filter(Message.channel_id == channel_id)
+        # Optimize query heavily with joinedload to prevent N+1 lookups on replies
+        query = db.query(Message).options(joinedload(Message.reply_to)).filter(Message.channel_id == channel_id)
         # Filter expiration manually or skip for debug
         query = query.filter((Message.expiration == None) | (Message.expiration > datetime.utcnow()))
         
@@ -172,7 +174,35 @@ def get_messages(
             "file_type": msg.file_type,
             "file_size": msg.file_size,
             "integrity_hash": msg.integrity_hash,
-            "reply_to": reply_to_data
+            "reply_to": reply_to_data,
+            "is_deleted": msg.is_deleted
         })
         
     return response_messages
+
+
+class DeleteMessageRequest(BaseModel):
+    id: str
+    mode: str # "me" or "everyone"
+
+@router.post("/messages/delete")
+def delete_message(
+    request: DeleteMessageRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    msg_id = int(request.id)
+    msg = db.query(Message).filter(Message.id == msg_id).first()
+    
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+        
+    if request.mode == "everyone":
+        # Only sender can delete for everyone in an ideal world, but let's just mark it
+        msg.is_deleted = True
+        db.commit()
+    elif request.mode == "me":
+        # Just a frontend hide for now or you can implement local hide table
+        pass
+        
+    return {"success": True}

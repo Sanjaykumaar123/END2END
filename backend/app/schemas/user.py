@@ -23,6 +23,7 @@ class User(UserBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    role: str = "user"
 
 class TokenPayload(BaseModel):
     sub: Optional[int] = None

@@ -33,6 +33,7 @@ def login_access_token(
             {"sub": user.email}, expires_delta=access_token_expires
         ),
         "token_type": "bearer",
+        "role": getattr(user, "role", "user"),
     }
 
 @router.post("/register", response_model=UserCreate)
@@ -56,9 +57,48 @@ def register_user(
         email=user_in.email,
         hashed_password=hashed_password,
         full_name=user_in.full_name,
-        role="user" # Default role
+        role="commander" # Default role for full demo access
     )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return user_in
+
+from pydantic import BaseModel
+from typing import Optional
+
+class GoogleSyncRequest(BaseModel):
+    email: str
+    full_name: Optional[str] = None
+
+@router.post("/google-sync", response_model=Token)
+def google_sync_user(
+    request: GoogleSyncRequest,
+    db: Session = Depends(deps.get_db)
+) -> Any:
+    """
+    Sync Google OAuth user with FastAPI backend and issue JWT token
+    """
+    user = db.query(User).filter(User.email == request.email).first()
+    
+    if not user:
+        # Create a new user for the Google OAuth account
+        user = User(
+            email=request.email,
+            hashed_password=security.get_password_hash("google-oauth-dummy-pass"),
+            full_name=request.full_name or request.email.split("@")[0],
+            role="commander",
+            is_active=True
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    return {
+        "access_token": security.create_access_token(
+            {"sub": user.email}, expires_delta=access_token_expires
+        ),
+        "token_type": "bearer",
+        "role": getattr(user, "role", "user"),
+    }

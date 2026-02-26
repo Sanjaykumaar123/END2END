@@ -93,6 +93,39 @@ async def scan(
     db.commit()
     db.refresh(db_message)
     
+    # HQ Auto-Responder (Real-time and persistent)
+    if not is_blocked and request.channel_id == "hq":
+        current_time_str = datetime.utcnow().strftime("%H:%M:%S UTC")
+        extracted_keywords = request.lines.split()[0] if request.lines else "data"
+        
+        hq_reply = Message(
+            sender_id=6, # Admin Officer ID
+            content_encrypted=f"HQ Command received transmission at {current_time_str}. Analyzing '{extracted_keywords}...' Protocol engaged.",
+            ai_score=0.0,
+            opsec_risk="SAFE",
+            phishing_risk="LOW",
+            is_blocked=False,
+            channel_id="hq",
+            reply_to_id=db_message.id
+        )
+        db.add(hq_reply)
+        db.commit()
+        
+    elif not is_blocked and request.channel_id == "general":
+        # Keep Alpha team alive
+        general_reply = Message(
+            sender_id=2, # Commander Shepard ID
+            content_encrypted=f"Alpha actual copies. Proceeding.",
+            ai_score=0.0,
+            opsec_risk="SAFE",
+            phishing_risk="LOW",
+            is_blocked=False,
+            channel_id="general",
+            reply_to_id=db_message.id
+        )
+        db.add(general_reply)
+        db.commit()
+
     return {
         "message_id": db_message.id,
         **result

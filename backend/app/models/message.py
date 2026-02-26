@@ -26,6 +26,7 @@ class Message(Base):
     expiration = Column(DateTime, nullable=True)   # Self-destruct time
     receiver_id = Column(Integer, nullable=True)  # Future: add ForeignKey("users.id") with migration
     reply_to_id = Column(Integer, ForeignKey("messages.id"), nullable=True)
+    is_deleted = Column(Boolean, default=False) # WhatsApp style delete tracking
 
     sender = relationship("User")
     reply_to = relationship("Message", remote_side=[id])
