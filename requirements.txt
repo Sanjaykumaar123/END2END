@@ -12,5 +12,5 @@ httpx
 anyio
 email-validator
 pyjwt
-argon2-cffi
 argon2-cffi-bindings
+pg8000
