@@ -5,9 +5,9 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
-# Prioritize Argon2 to avoid bcrypt length limits/crashes on Vercel
-# Bcrypt is kept as fallback for verifying existing hashes
-pwd_context = CryptContext(schemes=["argon2", "pbkdf2_sha256", "bcrypt"], deprecated="auto")
+# Prioritize pbkdf2_sha256 to avoid argon2/bcrypt c-binding build limits/crashes on Vercel
+# Bcrypt and Argon are kept as fallback for verifying existing hashes
+pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt", "argon2"], deprecated="auto")
 ALGORITHM = "HS256"
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
