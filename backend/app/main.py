@@ -17,6 +17,7 @@ from app.db.base import Base
 from app.models.user import User
 from app.models.message import Message
 from app.core import security
+from sqlalchemy import text
 
 
 
@@ -36,6 +37,34 @@ async def lifespan(app: FastAPI):
         # WRAPPED IN TRY/EXCEPT TO PREVENT CRASH ON VERCEL IF DB CONNECTION FAILS
         try:
             Base.metadata.create_all(bind=engine)
+            
+            # Auto-Migrate Old Vercel/Neon DBs
+            try:
+                with engine.connect() as conn:
+                    columns_to_add = [
+                        ("file_url", "VARCHAR"),
+                        ("file_type", "VARCHAR"),
+                        ("file_size", "VARCHAR"),
+                        ("integrity_hash", "VARCHAR"),
+                        ("channel_id", "VARCHAR"),
+                        ("expiration", "TIMESTAMP"),
+                        ("receiver_id", "INTEGER"),
+                        ("reply_to_id", "INTEGER"),
+                        ("is_deleted", "BOOLEAN DEFAULT FALSE"),
+                        ("ai_score", "FLOAT"),
+                        ("opsec_risk", "VARCHAR"),
+                        ("phishing_risk", "VARCHAR"),
+                        ("is_blocked", "BOOLEAN DEFAULT FALSE")
+                    ]
+                    for col_name, col_type in columns_to_add:
+                        try:
+                            # Postgres supports IF NOT EXISTS
+                            conn.execute(text(f"ALTER TABLE messages ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
+                        except Exception:
+                            pass
+                    conn.commit()
+            except Exception as mig_err:
+                print(f"Migration soft-fail: {mig_err}")
             
             # Create Default User for Vercel Demo
             db = SessionLocal()
