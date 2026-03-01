@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Shield, Lock, AlertTriangle, Eye, Activity, FileText, Brain, Key, Network, Paperclip, File, Download, CheckCircle, MoreVertical, Reply } from "lucide-react";
+import { Send, Shield, Lock, AlertTriangle, Eye, Activity, FileText, Brain, Key, Network, Paperclip, File, Download, CheckCircle, MoreVertical, Reply, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
-import { getSession } from "next-auth/react";
+import { getSession, signOut } from "next-auth/react";
 import { Role, permissions } from "@/lib/permissions";
 
 type RiskResult = {
@@ -67,6 +67,12 @@ export function ChatInterface() {
     const [currentRole, setCurrentRole] = useState<Role>("user");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const handleLogout = async () => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        await signOut({ callbackUrl: "/login" });
+    };
 
     const channels = [
         { id: "general", name: "Alpha Team", status: "ACTIVE" },
@@ -525,13 +531,22 @@ export function ChatInterface() {
             <div className="flex w-full flex-1 overflow-hidden">
                 {/* Sidebar */}
                 <aside className="w-80 border-r border-slate-800 bg-slate-900/50 hidden md:flex flex-col">
-                    <div className="p-6 border-b border-slate-800">
-                        <h2 className="text-xl font-bold flex items-center gap-2 text-teal-400">
-                            <Shield className="w-5 h-5" /> SENTINEL
-                        </h2>
-                        <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                            <Lock className="w-3 h-3" /> ENCRYPTED CHANNEL
+                    <div className="p-6 border-b border-slate-800 flex justify-between items-center group">
+                        <div>
+                            <h2 className="text-xl font-bold flex items-center gap-2 text-teal-400">
+                                <Shield className="w-5 h-5" /> SENTINEL
+                            </h2>
+                            <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                                <Lock className="w-3 h-3" /> ENCRYPTED CHANNEL
+                            </div>
                         </div>
+                        <button
+                            onClick={handleLogout}
+                            className="p-2 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded transition duration-200"
+                            title="Log Out"
+                        >
+                            <LogOut className="w-4 h-4" />
+                        </button>
                     </div>
                     <div className="flex-1 overflow-y-auto p-4 space-y-2">
                         {channels.map(channel => (
