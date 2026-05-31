@@ -67,6 +67,11 @@ export function ChatInterface() {
     const [currentRole, setCurrentRole] = useState<Role>("user");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const selectedChannelRef = useRef(selectedChannel);
+
+    useEffect(() => {
+        selectedChannelRef.current = selectedChannel;
+    }, [selectedChannel]);
 
     const handleLogout = async () => {
         localStorage.removeItem("token");
@@ -117,9 +122,11 @@ export function ChatInterface() {
     const fetchMessages = async () => {
         const token = localStorage.getItem("token");
         if (!token) return;
+        
+        const fetchChannel = selectedChannel; // Capture current channel for this request
 
         try {
-            const res = await fetch(`/api/v1/chat/messages?channel_id=${selectedChannel}`, {
+            const res = await fetch(`/api/v1/chat/messages?channel_id=${fetchChannel}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -133,6 +140,10 @@ export function ChatInterface() {
 
             if (res.ok) {
                 const data = await res.json();
+                
+                // CRITICAL FIX: Ensure this data is still meant for the currently active channel
+                if (selectedChannelRef.current !== fetchChannel) return;
+                
                 // Merge logic could be simpler: just replace for now or append new ones
                 // To avoid jitter, we can just setMessages if the length is different or last message ID different
                 // For prototype, simple set is fine, but let's be careful about local "scanning" state
@@ -555,7 +566,6 @@ export function ChatInterface() {
                                 onClick={() => {
                                     setSelectedChannel(channel.id);
                                     setMessages([]); // Clear messages on swtich
-                                    setTimeout(fetchMessages, 100); // Fetch new channel
                                 }}
                                 className={clsx(
                                     "p-3 rounded-lg border cursor-pointer transition-colors",
@@ -606,7 +616,6 @@ export function ChatInterface() {
                                 onClick={() => {
                                     setSelectedChannel(dm.id);
                                     setMessages([]); // Clear messages on switch
-                                    setTimeout(fetchMessages, 100); // Fetch new channel
                                 }}
                                 className={clsx(
                                     "relative p-4 cursor-pointer transition-all duration-300 border-l-2",
