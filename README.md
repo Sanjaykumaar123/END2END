@@ -16,7 +16,7 @@
 ## 🌐 Overview
 **SentinelNet** is a defense-grade, zero-trust communication platform engineered to detect, intercept, and mitigate modern social engineering vectors. By integrating real-time **AI heuristic scanning**, **OPSEC validation**, and **End-to-End Encryption (E2EE)**, SentinelNet ensures that compromised operational data and AI-generated deepfake text never reach their targets.
 
-Built for the **Devpost Find Evil** hackathon, this ecosystem provides both a highly secure field-agent chat interface and a global Command HQ dashboard for real-time telemetry.
+Built for  hackathon, this ecosystem provides both a highly secure field-agent chat interface and a global Command HQ dashboard for real-time telemetry.
 
 ---
 
